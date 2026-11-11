@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Einkaufsliste</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2563eb">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Einkauf">
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #fff; --text: #1d2330; --muted: #6b7280;
+    --line: #e3e6eb; --accent: #2563eb; --accent-soft: #e8efff;
+    --good: #15803d; --good-soft: #e6f6ec; --danger: #dc2626; --warn-soft: #fff7e0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161b; --card: #1d2027; --text: #e7e9ee; --muted: #9aa1ad;
+      --line: #2e323b; --accent: #6b9bff; --accent-soft: #23304d;
+      --good: #4ade80; --good-soft: #1b3326; --danger: #f87171; --warn-soft: #3a3320;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 60px; }
+  h1 { font-size: 26px; margin: 0 0 18px; }
+  h2 { font-size: 17px; margin: 0 0 12px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px; margin-bottom: 16px;
+  }
+  input[type=text], input[type=number] {
+    font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; min-width: 0;
+  }
+  select {
+    font: inherit; color: var(--text); background: var(--card);
+    border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px;
+  }
+  input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  button {
+    font: inherit; cursor: pointer; border-radius: 8px; padding: 8px 12px;
+    border: 1px solid var(--line); background: var(--card); color: var(--text);
+  }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.small { padding: 4px 9px; font-size: 13px; }
+  button.icon { border: none; background: none; color: var(--muted); padding: 4px 8px; font-size: 18px; }
+  button.icon:hover { color: var(--danger); }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .grow { flex: 1; }
+  .muted { color: var(--muted); font-size: 13px; }
+
+  ul#list { list-style: none; margin: 0; padding: 0; }
+  li.item { border-top: 1px solid var(--line); padding: 10px 0; }
+  li.item:first-child { border-top: none; }
+  .item-head { display: flex; align-items: center; gap: 10px; }
+  .item-head input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent); }
+  .item-name { flex: 1; font-size: 16px; word-break: break-word; }
+  li.done .item-name { text-decoration: line-through; color: var(--muted); }
+  .qty { width: 64px; }
+  .details { margin: 10px 0 4px 30px; padding: 12px; background: var(--bg); border-radius: 10px; }
+  .price-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .price-grid label { display: flex; flex-direction: column; font-size: 13px; color: var(--muted); gap: 3px; }
+  .price-grid input { width: 100%; background: var(--card); }
+  .online { margin-top: 10px; }
+  .msg { padding: 8px 10px; border-radius: 8px; background: var(--warn-soft); font-size: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  td.num, th.num { text-align: right; white-space: nowrap; }
+  .table-wrap { overflow-x: auto; }
+
+  .stores { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .chip { display: inline-flex; align-items: center; gap: 2px; padding: 3px 4px 3px 10px; border-radius: 999px; background: var(--accent-soft); font-size: 14px; }
+  .chip button { border: none; background: none; padding: 0 6px; color: var(--muted); }
+  .chip button:hover { color: var(--danger); }
+  .quick-chip { cursor: pointer; user-select: none; border: 1px solid transparent; }
+  .quick-chip:hover { border-color: var(--accent); }
+  .quick-chip.on { background: var(--good-soft); color: var(--good); }
+  .quick-chip .n { font-size: 12px; opacity: .75; margin-left: 4px; }
+
+  .totals td.store { font-weight: 600; }
+  .totals tr.best td { background: var(--good-soft); color: var(--good); font-weight: 700; }
+  .badge { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--good); color: var(--card); font-size: 12px; }
+  .empty { color: var(--muted); padding: 10px 0; }
+  /* Scanner */
+  .overlay {
+    position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,.55);
+    display: flex; align-items: flex-end; justify-content: center;
+  }
+  .sheet {
+    background: var(--card); color: var(--text); width: 100%; max-width: 560px; max-height: 92vh; overflow-y: auto;
+    border-radius: 18px 18px 0 0; padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
+  }
+  @media (min-width: 601px) { .overlay { align-items: center; } .sheet { border-radius: 18px; } }
+  .sheet-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .sheet-head h2 { margin: 0; }
+  #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; min-height: 200px; }
+  #reader video { width: 100% !important; display: block; }
+  .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 13px; color: var(--muted); }
+  .field input, .field select { width: 100%; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .offer { display: flex; justify-content: space-between; gap: 8px; width: 100%; text-align: left; margin-bottom: 6px; background: var(--bg); }
+  .offer b { white-space: nowrap; }
+  .sheet .actions { display: flex; gap: 8px; margin-top: 12px; }
+  .sheet .actions button { flex: 1; }
+
+  /* Handy */
+  html { -webkit-text-size-adjust: 100%; }
+  body { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+  main { padding-top: calc(16px + env(safe-area-inset-top)); padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
+  @media (max-width: 600px) {
+    main { padding-left: 12px; padding-right: 12px; }
+    h1 { font-size: 22px; margin-bottom: 12px; }
+    .card { padding: 12px; border-radius: 14px; }
+    input[type=text], input[type=number], select { font-size: 16px; } /* verhindert Zoom am iPhone */
+    button { min-height: 40px; }
+    button.small { min-height: 34px; }
+    .details { margin-left: 0; padding: 10px; }
+    .item-head { flex-wrap: wrap; row-gap: 6px; }
+    .item-head input[type=checkbox] { width: 26px; height: 26px; }
+    .item-name { flex: 1 1 calc(100% - 90px); font-size: 17px; }
+    .item-head > .muted { margin-left: 36px; }
+    .price-grid { grid-template-columns: 1fr 1fr; }
+    .details input[type=text][inputmode=numeric] { width: 100% !important; }
+    .online td, .online th { padding: 6px 4px; font-size: 13px; }
+    .quick-chip { padding: 6px 4px 6px 12px; font-size: 15px; }
+    #finish { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>🛒 Einkaufsliste</h1>
+
+  <section class="card">
+    <form id="addForm" class="row">
+      <input id="newName" type="text" class="grow" placeholder="Produkt eintragen, z. B. Milch" autocomplete="off">
+      <button class="primary" type="submit">Hinzufügen</button>
+      <button id="scanBtn" type="button" title="Barcode scannen">📷 Scannen</button>
+    </form>
+    <div id="quickWrap" style="margin-top:12px">
+      <div class="muted">Schnellauswahl – gespeicherte Produkte (Klick fügt hinzu):</div>
+      <div class="stores" id="quick"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="row" style="justify-content:space-between;margin-bottom:6px">
+      <h2 style="margin:0">Liste</h2>
+      <div class="row">
+        <button id="clearDone" class="small" type="button">Erledigte entfernen</button>
+        <button id="finish" class="primary" type="button">✔ Fertig – als PDF</button>
+      </div>
+    </div>
+    <ul id="list"></ul>
+  </section>
+
+  <section class="card">
+    <h2>Gesamtsumme pro Supermarkt</h2>
+    <div class="table-wrap"><table class="totals" id="totals"></table></div>
+    <p class="muted" id="totalsNote"></p>
+  </section>
+
+  <section class="card">
+    <h2>Supermärkte</h2>
+    <form id="storeForm" class="row">
+      <input id="newStore" type="text" class="grow" placeholder="Supermarkt hinzufügen" autocomplete="off">
+      <button type="submit">Hinzufügen</button>
+    </form>
+    <div class="stores" id="stores"></div>
+  </section>
+
+  <p class="muted">Online-Preise: Open Prices (Open Food Facts), von Nutzern gemeldet. Für Österreich teils lückenhaft.</p>
+</main>
+
+<script>
+const STORAGE_KEY = 'einkaufsliste_v1';
+const API = 'https://prices.openfoodfacts.org/api/v1';
+
+const HOME = { name: 'Kirchdorf an der Krems', lat: 47.9056, lon: 14.1236 };
+
+let state = load();
+if (!state.region) state.region = { mode: 'radius', radius: 20 };
+if (!state.catalog) {
+  state.catalog = {};
+  for (const i of state.items) state.catalog[i.name.toLowerCase()] = { name: i.name, count: 1, prices: {}, ean: '' };
+}
+const openDetails = new Set();
+const onlineCache = {}; // id -> {html state} not persisted
+
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (s && Array.isArray(s.items) && Array.isArray(s.stores)) return s;
+  } catch (e) {}
+  return { stores: ['Billa', 'Spar', 'Hofer', 'Lidl', 'Penny'], items: [] };
+}
+function save() {
+  // Gespeicherte Produkte merken sich zuletzt eingetragene Preise und EAN
+  if (state.catalog) for (const i of state.items) {
+    const key = i.name.toLowerCase();
+    const c = state.catalog[key] || (state.catalog[key] = { name: i.name, count: 1 });
+    c.prices = { ...(i.prices || {}) };
+    c.ean = i.ean || '';
+  }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function parsePrice(v) {
+  if (v == null) return null;
+  const n = parseFloat(String(v).replace(',', '.').replace(/[^\d.\-]/g, ''));
+  return isFinite(n) && n >= 0 ? n : null;
+}
+const fmt = new Intl.NumberFormat('de-AT', { style: 'currency', currency: 'EUR' });
+function money(n, cur) {
+  if (cur && cur !== 'EUR') {
+    try { return new Intl.NumberFormat('de-AT', { style: 'currency', currency: cur }).format(n); } catch (e) {}
+  }
+  return fmt.format(n);
+}
+function fmtDate(d) {
+  if (!d) return '–';
+  const dt = new Date(d);
+  return isNaN(dt) ? d : dt.toLocaleDateString('de-AT');
+}
+function el(tag, props = {}, ...children) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (k in e && k !== 'list') e[k] = v;
+    else e.setAttribute(k, v);
+  }
+  for (const c of children) if (c != null) e.append(c);
+  return e;
+}
+
+/* ---------- Liste ---------- */
+function render() {
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  if (!state.items.length) {
+    list.append(el('li', { class: 'empty' }, 'Noch keine Produkte. Oben eintragen.'));
+  }
+  for (const item of state.items) list.append(renderItem(item));
+  renderQuick();
+  renderStores();
+  renderTotals();
+}
+
+function renderItem(item) {
+  const li = el('li', { class: 'item' + (item.done ? ' done' : '') });
+
+  const cb = el('input', { type: 'checkbox', checked: !!item.done, title: 'Abhaken',
+    onchange: () => { item.done = cb.checked; save(); li.classList.toggle('done', item.done); } });
+
+  const qty = el('input', { type: 'number', class: 'qty', min: '1', step: '1', value: item.qty || 1, title: 'Menge',
+    oninput: () => { item.qty = Math.max(1, parseInt(qty.value) || 1); save(); renderTotals(); } });
+
+  const toggle = el('button', { class: 'small', type: 'button',
+    onclick: () => {
+      openDetails.has(item.id) ? openDetails.delete(item.id) : openDetails.add(item.id);
+      render();
+    } }, openDetails.has(item.id) ? 'Preise ▲' : 'Preise ▼');
+
+  const del = el('button', { class: 'icon', type: 'button', title: 'Löschen',
+    onclick: () => {
+      state.items = state.items.filter(i => i.id !== item.id);
+      openDetails.delete(item.id); delete onlineCache[item.id];
+      save(); render();
+    } }, '✕');
+
+  li.append(el('div', { class: 'item-head' }, cb, el('span', { class: 'item-name' }, item.name),
+    el('span', { class: 'muted' }, 'Menge'), qty, toggle, del));
+
+  if (openDetails.has(item.id)) li.append(renderDetails(item));
+  return li;
+}
+
+function renderDetails(item) {
+  const box = el('div', { class: 'details' });
+  const grid = el('div', { class: 'price-grid' });
+  for (const store of state.stores) {
+    const inp = el('input', { type: 'text', inputMode: 'decimal', placeholder: '€ Preis',
+      value: item.prices && item.prices[store] != null ? String(item.prices[store]).replace('.', ',') : '',
+      oninput: () => {
+        item.prices = item.prices || {};
+        const p = parsePrice(inp.value);
+        if (p == null) delete item.prices[store]; else item.prices[store] = p;
+        save(); renderTotals();
+      } });
+    grid.append(el('label', {}, store, inp));
+  }
+  if (!state.stores.length) grid.append(el('span', { class: 'muted' }, 'Erst unten einen Supermarkt anlegen.'));
+  box.append(grid);
+
+  const ean = el('input', { type: 'text', inputMode: 'numeric', placeholder: 'Barcode/EAN (optional, genauer)',
+    value: item.ean || '', style: 'width:240px',
+    oninput: () => { item.ean = ean.value.replace(/\D/g, ''); save(); } });
+
+  const results = el('div', { class: 'online' });
+  const btn = el('button', { class: 'primary', type: 'button', onclick: () => searchOnline(item, results, btn) },
+    'Preise online suchen');
+  const scanEan = el('button', { type: 'button', title: 'Barcode für dieses Produkt scannen',
+    onclick: () => openScanner({ item }) }, '📷');
+  box.append(el('div', { class: 'row' }, btn, ean, scanEan));
+  box.append(results);
+  if (onlineCache[item.id]) showResults(item, results, onlineCache[item.id]);
+  return box;
+}
+
+/* ---------- Open Prices ---------- */
+async function getJson(url) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 12000);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal, headers: { Accept: 'application/json' } });
+    if (!r.ok) { const err = new Error('HTTP ' + r.status); err.status = r.status; throw err; }
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+
+async function findProducts(name) {
+  const q = encodeURIComponent(name.trim());
+  let data;
+  try {
+    data = await getJson(`${API}/products?product_name__like=${q}&order_by=-price_count&size=20`);
+  } catch (e) {
+    if (e.status) data = await getJson(`${API}/products?product_name__like=${q}&size=20`);
+    else throw e;
+  }
+  return (data.items || [])
+    .filter(p => p.code && (p.price_count == null || p.price_count > 0))
+    .sort((a, b) => (b.price_count || 0) - (a.price_count || 0))
+    .slice(0, 10);
+}
+
+async function searchOnline(item, results, btn) {
+  btn.disabled = true;
+  results.innerHTML = '';
+  results.append(el('div', { class: 'muted' }, 'Suche bei Open Prices …'));
+  try {
+    let products;
+    if (item.ean) products = [{ code: item.ean, product_name: item.name }];
+    else products = await findProducts(item.name);
+
+    if (!products.length) {
+      onlineCache[item.id] = { error: `Keine Online-Preise für „${item.name}“ gefunden. Preise bitte manuell eintragen.` };
+    } else {
+      const lists = await Promise.all(products.map(p =>
+        getJson(`${API}/prices?product_code=${encodeURIComponent(p.code)}&order_by=-date&size=100`)
+          .then(d => (d.items || []).map(x => ({ ...x, _pname: (x.product && x.product.product_name) || p.product_name || p.code, _brand: (x.product && x.product.brands) || p.brands || '' })))
+          .catch(() => [])));
+      const prices = lists.flat().sort((a, b) => String(b.date).localeCompare(String(a.date)));
+      onlineCache[item.id] = prices.length ? { prices }
+        : { error: `Keine Online-Preise für „${item.name}“ gefunden. Preise bitte manuell eintragen.` };
+    }
+  } catch (e) {
+    onlineCache[item.id] = { error: 'Open Prices ist gerade nicht erreichbar. Preise bitte manuell eintragen.' };
+  }
+  btn.disabled = false;
+  showResults(item, results, onlineCache[item.id]);
+}
+
+function isAT(p) {
+  const c = ((p.location && p.location.osm_address_country) || '').toLowerCase();
+  return c.includes('österreich') || c.includes('austria') || c === 'at';
+}
+
+function distanceKm(p) {
+  const loc = p.location || {};
+  const lat = parseFloat(loc.osm_lat), lon = parseFloat(loc.osm_lon);
+  if (!isFinite(lat) || !isFinite(lon)) return null;
+  const R = 6371, rad = Math.PI / 180;
+  const dLat = (lat - HOME.lat) * rad, dLon = (lon - HOME.lon) * rad;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(HOME.lat * rad) * Math.cos(lat * rad) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function filterByRegion(prices) {
+  const r = state.region;
+  if (r.mode === 'all') return prices;
+  if (r.mode === 'at') return prices.filter(isAT);
+  return prices.filter(p => { const d = distanceKm(p); return d != null && d <= r.radius; });
+}
+
+function showResults(item, results, data) {
+  results.innerHTML = '';
+  if (data.error) { results.append(el('div', { class: 'msg' }, data.error)); return; }
+
+  const r = state.region;
+  const sel = el('select', { onchange: () => { r.mode = sel.value; save(); showResults(item, results, data); } },
+    el('option', { value: 'radius' }, `${HOME.name} (Umkreis)`),
+    el('option', { value: 'at' }, 'Ganz Österreich'),
+    el('option', { value: 'all' }, 'Alle Länder'));
+  sel.value = r.mode;
+  const radius = el('select', { onchange: () => { r.radius = +radius.value; save(); showResults(item, results, data); } },
+    ...[5, 10, 20, 30, 50].map(km => el('option', { value: km }, `${km} km`)));
+  radius.value = r.radius;
+  radius.style.display = r.mode === 'radius' ? '' : 'none';
+
+  const shown = filterByRegion(data.prices);
+  results.append(el('div', { class: 'row', style: 'margin-bottom:6px' },
+    el('span', { class: 'muted' }, 'Region:'), sel, radius,
+    el('span', { class: 'muted' }, `${shown.length} von ${data.prices.length} Preisen`)));
+
+  if (!shown.length) {
+    const atCount = data.prices.filter(isAT).length;
+    let txt = r.mode === 'radius'
+      ? `Keine Preise im Umkreis von ${r.radius} km um ${HOME.name} gefunden.`
+      : 'Keine Preise aus Österreich gefunden.';
+    if (r.mode === 'radius' && atCount) txt += ` In ganz Österreich gibt es ${atCount}.`;
+    results.append(el('div', { class: 'msg' }, txt + ' Preise bitte manuell eintragen.'));
+    return;
+  }
+
+  const tbody = el('tbody');
+  for (const p of shown.slice(0, 30)) {
+    const loc = p.location || {};
+    const shop = loc.osm_name || loc.osm_brand || 'Unbekanntes Geschäft';
+    const dist = distanceKm(p);
+    const place = [loc.osm_address_city, loc.osm_address_country].filter(Boolean).join(', ')
+      + (dist != null && isAT(p) ? ` · ${dist.toFixed(dist < 10 ? 1 : 0).replace('.', ',')} km` : '');
+    const per = p.price_per === 'KILOGRAM' ? ' /kg' : p.price_per === 'LITER' ? ' /l' : '';
+    const priceTxt = money(p.price, p.currency) + per + (p.price_is_discounted ? ' (Aktion)' : '');
+    const take = el('button', { class: 'small', type: 'button', title: 'Als manuellen Preis übernehmen',
+      onclick: () => takePrice(item, shop, p.price) }, 'übernehmen');
+    tbody.append(el('tr', {},
+      el('td', {}, p._pname, p._brand ? el('div', { class: 'muted' }, p._brand) : null),
+      el('td', { class: 'num' }, priceTxt),
+      el('td', {}, shop, place ? el('div', { class: 'muted' }, place) : null),
+      el('td', { class: 'num' }, fmtDate(p.date)),
+      el('td', {}, (p.currency || 'EUR') === 'EUR' ? take : null)));
+  }
+  const table = el('table', {},
+    el('thead', {}, el('tr', {}, el('th', {}, 'Produkt'), el('th', { class: 'num' }, 'Preis'),
+      el('th', {}, 'Geschäft'), el('th', { class: 'num' }, 'Datum'), el('th', {}, ''))),
+    tbody);
+  results.append(el('div', { class: 'table-wrap' }, table));
+}
+
+function takePrice(item, shop, price) {
+  const lower = shop.toLowerCase();
+  let store = state.stores.find(s => lower.includes(s.toLowerCase()));
+  if (!store) {
+    const answer = prompt(`Welchem Supermarkt zuordnen?\nVorhanden: ${state.stores.join(', ')}`, shop);
+    if (!answer || !answer.trim()) return;
+    const name = answer.trim();
+    store = state.stores.find(s => s.toLowerCase() === name.toLowerCase());
+    if (!store) { store = name; state.stores.push(store); }
+  }
+  item.prices = item.prices || {};
+  item.prices[store] = Math.round(price * 100) / 100;
+  save(); render();
+}
+
+/* ---------- Fertig: PDF zum Abhaken ---------- */
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = res; s.onerror = rej;
+    document.head.append(s);
+  });
+}
+
+function bestStoreInfo() {
+  const rows = state.stores.map(store => {
+    let sum = 0, count = 0;
+    for (const i of state.items) {
+      const p = i.prices && i.prices[store];
+      if (p != null) { sum += p * (i.qty || 1); count++; }
+    }
+    return { store, sum, count };
+  }).filter(r => r.count > 0);
+  if (!rows.length) return null;
+  const max = Math.max(...rows.map(r => r.count));
+  return rows.filter(r => r.count === max).sort((a, b) => a.sum - b.sum)[0];
+}
+
+function cheapestFor(item) {
+  let best = null;
+  for (const [store, p] of Object.entries(item.prices || {}))
+    if (state.stores.includes(store) && (!best || p < best.p)) best = { store, p };
+  return best;
+}
+
+const eur = n => n.toFixed(2).replace('.', ',') + ' EUR';
+const pdfSafe = s => String(s).replace(/[–—]/g, '-').replace(/[„“”]/g, '"').replace(/€/g, 'EUR');
+
+async function exportPdf() {
+  if (!state.items.length) { alert('Die Liste ist leer.'); return; }
+  const btn = document.getElementById('finish');
+  btn.disabled = true; btn.textContent = 'Erstelle PDF …';
+  try {
+    if (!window.jspdf) await loadScript('jspdf.umd.min.js');
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const CheckBox = (jsPDF.AcroForm && jsPDF.AcroForm.CheckBox) || doc.AcroFormCheckBox;
+    const today = new Date();
+    const best = bestStoreInfo();
+
+    const header = () => {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(20);
+      doc.text('Einkaufsliste', 20, 22);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(110);
+      doc.text(today.toLocaleDateString('de-AT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), 20, 29);
+      doc.setTextColor(0);
+    };
+    header();
+    let y = 38;
+    if (best) {
+      doc.setFillColor(230, 246, 236); doc.roundedRect(20, y - 5, 170, 10, 2, 2, 'F');
+      doc.setFontSize(11); doc.setTextColor(21, 128, 61);
+      doc.text(pdfSafe(`Günstigster Supermarkt: ${best.store} (${eur(best.sum)})`), 24, y + 1.5);
+      doc.setTextColor(0);
+      y += 14;
+    }
+
+    doc.setFontSize(13);
+    state.items.forEach((item, n) => {
+      if (y > 275) { doc.addPage(); header(); y = 40; }
+      const cb = new CheckBox();
+      cb.fieldName = 'produkt_' + (n + 1);
+      cb.Rect = [20, y - 5, 6, 6];
+      cb.appearanceState = item.done ? 'On' : 'Off';
+      if (item.done) cb.value = 'On';
+      doc.addField(cb);
+
+      const qty = (item.qty || 1) > 1 ? `${item.qty} x ` : '';
+      doc.setFont('helvetica', 'normal');
+      doc.text(pdfSafe(qty + item.name), 30, y);
+      const c = cheapestFor(item);
+      if (c) {
+        doc.setFontSize(10); doc.setTextColor(110);
+        doc.text(pdfSafe(`${eur(c.p)} (${c.store})`), 190, y, { align: 'right' });
+        doc.setFontSize(13); doc.setTextColor(0);
+      }
+      doc.setDrawColor(225); doc.line(20, y + 3, 190, y + 3);
+      y += 11;
+    });
+
+    doc.setFontSize(9); doc.setTextColor(140);
+    doc.text('Kästchen anklicken zum Abhaken. Zum Merken der Haken die PDF im Viewer speichern.', 20, 290);
+
+    const d = today.toISOString().slice(0, 10);
+    const name = `Einkaufsliste_${d}.pdf`;
+    const file = new File([doc.output('blob')], name, { type: 'application/pdf' });
+    // Am Handy: Teilen-Menü (Speichern, WhatsApp, Dateien …); sonst normaler Download
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], title: 'Einkaufsliste' }); }
+      catch (err) { if (err.name !== 'AbortError') doc.save(name); }
+    } else {
+      doc.save(name);
+    }
+  } catch (e) {
+    if (confirm('Die PDF konnte nicht erstellt werden.\nStattdessen eine Abhak-Liste als HTML-Datei speichern?')) exportHtml();
+  } finally {
+    btn.disabled = false; btn.textContent = '✔ Fertig – als PDF';
+  }
+}
+
+function exportHtml() {
+  const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+  const d = new Date().toISOString().slice(0, 10);
+  const rows = state.items.map((i, n) => {
+    const c = cheapestFor(i);
+    return `<label><input type="checkbox" data-n="${n}"${i.done ? ' checked' : ''}><span>${(i.qty || 1) > 1 ? i.qty + ' × ' : ''}${esc(i.name)}</span>${c ? `<small>${eur(c.p)} (${esc(c.store)})</small>` : ''}</label>`;
+  }).join('');
+  const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Einkaufsliste ${d}</title>
+<style>body{font:17px system-ui,sans-serif;max-width:600px;margin:0 auto;padding:20px 16px}label{display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid #ddd}input{width:22px;height:22px}span{flex:1}small{color:#777}input:checked+span{text-decoration:line-through;color:#999}</style></head>
+<body><h1>Einkaufsliste</h1><p>${new Date().toLocaleDateString('de-AT')}</p>${rows}
+<script>const k='ek_${d}';document.querySelectorAll('input').forEach(c=>{try{const s=JSON.parse(localStorage.getItem(k)||'{}');if(c.dataset.n in s)c.checked=s[c.dataset.n]}catch(e){}c.onchange=()=>{try{const s=JSON.parse(localStorage.getItem(k)||'{}');s[c.dataset.n]=c.checked;localStorage.setItem(k,JSON.stringify(s))}catch(e){}}})<\/script></body></html>`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+  a.download = `Einkaufsliste_${d}.html`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ---------- Schnellauswahl ---------- */
+function addProduct(name, extra = {}) {
+  name = name.trim();
+  if (!name) return;
+  let key = name.toLowerCase();
+  const existing = state.items.find(i => i.name.toLowerCase() === key || (extra.ean && i.ean === extra.ean));
+  if (existing) {
+    existing.qty = (existing.qty || 1) + 1;
+    existing.done = false;
+    if (extra.ean) existing.ean = extra.ean;
+    if (extra.prices) existing.prices = { ...(existing.prices || {}), ...extra.prices };
+    key = existing.name.toLowerCase();
+  } else {
+    const c = state.catalog[key] ||
+      (extra.ean ? Object.values(state.catalog).find(x => x.ean === extra.ean) : null);
+    if (c) key = c.name.toLowerCase();
+    state.items.push({ id: uid(), name: c ? c.name : name, qty: 1, done: false,
+      prices: { ...((c && c.prices) || {}), ...(extra.prices || {}) },
+      ean: extra.ean || (c && c.ean) || '' });
+  }
+  if (state.catalog[key]) state.catalog[key].count = (state.catalog[key].count || 0) + 1;
+  else state.catalog[key] = { name, count: 1, prices: {}, ean: extra.ean || '' };
+  save(); render();
+}
+
+/* ---------- Barcode-Scanner ---------- */
+let scanner = null;
+let overlay = null;
+
+async function stopScanner() {
+  if (scanner) {
+    try { await scanner.stop(); } catch (e) {}
+    try { scanner.clear(); } catch (e) {}
+    scanner = null;
+  }
+}
+async function closeScanner() {
+  await stopScanner();
+  if (overlay) { overlay.remove(); overlay = null; }
+}
+
+function sheetHead(title) {
+  return el('div', { class: 'sheet-head' }, el('h2', {}, title),
+    el('button', { class: 'icon', type: 'button', title: 'Schließen', onclick: closeScanner }, '✕'));
+}
+
+// opts.item gesetzt = nur Barcode für ein vorhandenes Produkt erfassen
+async function openScanner(opts = {}) {
+  await closeScanner();
+  overlay = el('div', { class: 'overlay', onclick: e => { if (e.target === overlay) closeScanner(); } });
+  const sheet = el('div', { class: 'sheet' });
+  overlay.append(sheet);
+  document.body.append(overlay);
+
+  const status = el('p', { class: 'muted' }, 'Kamera wird gestartet … Barcode in den Rahmen halten.');
+  const manual = el('input', { type: 'text', inputMode: 'numeric', placeholder: 'oder Barcode-Nummer eintippen', class: 'grow' });
+  const manualGo = el('button', { type: 'button', onclick: () => {
+    const code = manual.value.replace(/\D/g, '');
+    if (code.length >= 8) handleCode(code, opts); else manual.focus();
+  } }, 'OK');
+  sheet.append(sheetHead(opts.item ? `Barcode für „${opts.item.name}“` : 'Barcode scannen'),
+    el('div', { id: 'reader' }), status, el('div', { class: 'row' }, manual, manualGo));
+
+  try {
+    if (!window.__Html5QrcodeLibrary__) await loadScript('html5-qrcode.min.js');
+    const lib = window.__Html5QrcodeLibrary__;
+    const F = lib.Html5QrcodeSupportedFormats;
+    scanner = new lib.Html5Qrcode('reader', {
+      verbose: false,
+      formatsToSupport: [F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E],
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    });
+    let done = false;
+    await scanner.start({ facingMode: 'environment' },
+      { fps: 12, qrbox: (w, h) => ({ width: Math.floor(Math.min(w * 0.85, 340)), height: Math.floor(Math.min(h * 0.5, 150)) }) },
+      code => {
+        if (done) return;
+        done = true;
+        if (navigator.vibrate) navigator.vibrate(80);
+        handleCode(code, opts);
+      },
+      () => {});
+  } catch (e) {
+    const denied = e && /permission|notallowed/i.test(String(e.name || e));
+    status.textContent = denied
+      ? 'Kein Zugriff auf die Kamera. Bitte in den Einstellungen erlauben – oder die Nummer unten eintippen.'
+      : 'Die Kamera konnte nicht gestartet werden. Du kannst die Nummer unter dem Strichcode eintippen.';
+    status.className = 'msg';
+    document.getElementById('reader').style.display = 'none';
+  }
+}
+
+async function handleCode(code, opts) {
+  await stopScanner();
+  if (opts.item) {
+    opts.item.ean = code;
+    save(); closeScanner(); render();
+    return;
+  }
+  const sheet = overlay.querySelector('.sheet');
+  sheet.innerHTML = '';
+  sheet.append(sheetHead('Produkt erfassen'), el('p', { class: 'muted' }, `Barcode ${code} – suche Produktdaten …`));
+
+  // 1) Name über Open Food Facts, 2) Preise über Open Prices – beides parallel
+  const known = Object.values(state.catalog).find(c => c.ean === code)
+    || state.items.find(i => i.ean === code);
+  const [prod, prices] = await Promise.all([
+    getJson(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,product_name_de,generic_name_de,brands,quantity`)
+      .then(d => (d && d.status === 1 ? d.product : null)).catch(() => null),
+    getJson(`${API}/prices?product_code=${code}&order_by=-date&size=100`)
+      .then(d => d.items || []).catch(() => null)
+  ]);
+  if (!overlay) return; // inzwischen geschlossen
+  showScanForm(code, known, prod, prices);
+}
+
+function showScanForm(code, known, prod, prices) {
+  const sheet = overlay.querySelector('.sheet');
+  sheet.innerHTML = '';
+  sheet.append(sheetHead('Produkt erfassen'));
+
+  const brand = prod && prod.brands ? prod.brands.split(',')[0].trim() : '';
+  let suggested = known ? known.name : '';
+  if (!suggested && prod) {
+    const base = prod.product_name_de || prod.product_name || prod.generic_name_de || '';
+    suggested = [base, brand && !base.toLowerCase().includes(brand.toLowerCase()) ? brand : ''].filter(Boolean).join(' – ');
+  }
+
+  const info = known ? 'Dieses Produkt kennst du schon.'
+    : prod ? [brand, prod.quantity].filter(Boolean).join(' · ') || 'Produkt gefunden.'
+    : 'Produkt nicht in der Datenbank gefunden – bitte Namen selbst eintragen.';
+  sheet.append(el('p', { class: known || prod ? 'muted' : 'msg' }, `Barcode ${code} · ${info}`));
+
+  const nameIn = el('input', { type: 'text', value: suggested, placeholder: 'Produktname, z. B. Milch 1 l' });
+  const priceIn = el('input', { type: 'text', inputMode: 'decimal', placeholder: 'z. B. 1,49' });
+  const storeSel = el('select', {}, ...state.stores.map(s => el('option', { value: s }, s)),
+    el('option', { value: '__new' }, '+ anderer Supermarkt …'));
+  if (state.lastStore && state.stores.includes(state.lastStore)) storeSel.value = state.lastStore;
+
+  const fillPrice = () => {
+    const s = storeSel.value;
+    const p = known && known.prices && known.prices[s];
+    if (p != null && !priceIn.value) priceIn.value = String(p).replace('.', ',');
+  };
+  storeSel.addEventListener('change', () => { priceIn.value = ''; fillPrice(); });
+  fillPrice();
+
+  sheet.append(
+    el('label', { class: 'field' }, 'Name', nameIn),
+    el('div', { class: 'two' },
+      el('label', { class: 'field' }, 'Preis (€)', priceIn),
+      el('label', { class: 'field' }, 'Supermarkt', storeSel)));
+
+  // Online-Preise (Region wie eingestellt)
+  if (prices === null) {
+    sheet.append(el('p', { class: 'muted' }, 'Online-Preise gerade nicht erreichbar.'));
+  } else {
+    const near = filterByRegion(prices.map(p => p));
+    const label = state.region.mode === 'radius' ? `im Umkreis von ${state.region.radius} km`
+      : state.region.mode === 'at' ? 'in Österreich' : '';
+    if (!near.length) {
+      sheet.append(el('p', { class: 'muted' }, `Keine Online-Preise ${label} bekannt.`));
+    } else {
+      sheet.append(el('div', { class: 'muted', style: 'margin:4px 0 6px' }, `Online-Preise ${label} (antippen zum Übernehmen):`));
+      for (const p of near.slice(0, 8)) {
+        const loc = p.location || {};
+        const shop = loc.osm_name || loc.osm_brand || 'Unbekannt';
+        sheet.append(el('button', { class: 'offer', type: 'button', onclick: () => {
+          priceIn.value = String(p.price).replace('.', ',');
+          const match = state.stores.find(s => shop.toLowerCase().includes(s.toLowerCase()));
+          if (match) storeSel.value = match;
+        } },
+          el('span', {}, shop, el('div', { class: 'muted' }, [loc.osm_address_city, fmtDate(p.date)].filter(Boolean).join(' · '))),
+          el('b', {}, money(p.price, p.currency))));
+      }
+    }
+  }
+
+  const add = el('button', { class: 'primary', type: 'button', onclick: () => {
+    const name = nameIn.value.trim();
+    if (!name) { nameIn.focus(); return; }
+    let store = storeSel.value;
+    if (store === '__new') {
+      const n = (prompt('Name des Supermarkts:') || '').trim();
+      if (!n) return;
+      store = state.stores.find(s => s.toLowerCase() === n.toLowerCase()) || n;
+      if (!state.stores.includes(store)) state.stores.push(store);
+    }
+    const price = parsePrice(priceIn.value);
+    const extra = { ean: code };
+    if (price != null) { extra.prices = { [store]: price }; state.lastStore = store; }
+    addProduct(name, extra);
+    closeScanner();
+  } }, 'Zur Liste hinzufügen');
+  const again = el('button', { type: 'button', onclick: () => openScanner() }, 'Nochmal scannen');
+  sheet.append(el('div', { class: 'actions' }, again, add));
+  if (!suggested) nameIn.focus();
+}
+
+function renderQuick() {
+  const box = document.getElementById('quick');
+  const filter = document.getElementById('newName').value.trim().toLowerCase();
+  const onList = new Set(state.items.map(i => i.name.toLowerCase()));
+  const entries = Object.entries(state.catalog)
+    .filter(([key]) => !filter || key.includes(filter))
+    .sort((a, b) => (b[1].count || 0) - (a[1].count || 0) || a[1].name.localeCompare(b[1].name, 'de'));
+  box.innerHTML = '';
+  document.getElementById('quickWrap').style.display = Object.keys(state.catalog).length ? '' : 'none';
+  if (!entries.length) { box.append(el('span', { class: 'muted' }, 'Kein gespeichertes Produkt passt.')); return; }
+  for (const [key, c] of entries) {
+    const has = onList.has(key);
+    const chip = el('span', { class: 'chip quick-chip' + (has ? ' on' : ''),
+      title: has ? 'Schon auf der Liste – Klick erhöht die Menge' : 'Zur Liste hinzufügen',
+      onclick: () => addProduct(c.name) },
+      (has ? '✓ ' : '+ ') + c.name,
+      el('button', { type: 'button', title: 'Aus der Schnellauswahl entfernen',
+        onclick: e => { e.stopPropagation(); delete state.catalog[key]; save(); renderQuick(); } }, '✕'));
+    box.append(chip);
+  }
+}
+
+/* ---------- Supermärkte ---------- */
+function renderStores() {
+  const box = document.getElementById('stores');
+  box.innerHTML = '';
+  for (const s of state.stores) {
+    box.append(el('span', { class: 'chip' }, s, el('button', { type: 'button', title: 'Entfernen',
+      onclick: () => {
+        if (!confirm(`„${s}“ und alle eingetragenen Preise dafür entfernen?`)) return;
+        state.stores = state.stores.filter(x => x !== s);
+        state.items.forEach(i => { if (i.prices) delete i.prices[s]; });
+        save(); render();
+      } }, '✕')));
+  }
+}
+
+/* ---------- Summen ---------- */
+function renderTotals() {
+  const table = document.getElementById('totals');
+  const note = document.getElementById('totalsNote');
+  table.innerHTML = '';
+  const items = state.items;
+  const rows = state.stores.map(store => {
+    let sum = 0, count = 0;
+    for (const i of items) {
+      const p = i.prices && i.prices[store];
+      if (p != null) { sum += p * (i.qty || 1); count++; }
+    }
+    return { store, sum, count };
+  });
+
+  const withPrices = rows.filter(r => r.count > 0);
+  if (!items.length || !withPrices.length) {
+    note.textContent = 'Noch keine Preise eingetragen.';
+    return;
+  }
+  // Fair vergleichen: nur Märkte mit den meisten erfassten Produkten
+  const maxCount = Math.max(...withPrices.map(r => r.count));
+  const candidates = withPrices.filter(r => r.count === maxCount);
+  const best = Math.min(...candidates.map(r => r.sum));
+
+  table.append(el('thead', {}, el('tr', {}, el('th', {}, 'Supermarkt'),
+    el('th', { class: 'num' }, 'Preise erfasst'), el('th', { class: 'num' }, 'Summe'))));
+  const tbody = el('tbody');
+  rows.sort((a, b) => (b.count - a.count) || (a.sum - b.sum));
+  for (const r of rows) {
+    const isBest = r.count === maxCount && r.sum === best;
+    tbody.append(el('tr', { class: isBest ? 'best' : '' },
+      el('td', { class: 'store' }, r.store, isBest ? el('span', { class: 'badge' }, 'günstigster') : null),
+      el('td', { class: 'num' }, `${r.count} / ${items.length}`),
+      el('td', { class: 'num' }, r.count ? money(r.sum) : '–')));
+  }
+  table.append(tbody);
+  note.textContent = maxCount < items.length
+    ? `Hinweis: Kein Supermarkt hat Preise für alle ${items.length} Produkte. Verglichen werden die Märkte mit den meisten erfassten Preisen (${maxCount}).`
+    : 'Summe = Preis × Menge für alle Produkte der Liste.';
+}
+
+/* ---------- Events ---------- */
+document.getElementById('addForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const input = document.getElementById('newName');
+  const name = input.value;
+  input.value = '';
+  addProduct(name);
+  input.focus();
+});
+document.getElementById('newName').addEventListener('input', renderQuick);
+document.getElementById('finish').addEventListener('click', exportPdf);
+document.getElementById('scanBtn').addEventListener('click', () => openScanner());
+
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+document.getElementById('storeForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const input = document.getElementById('newStore');
+  const name = input.value.trim();
+  if (!name) return;
+  if (!state.stores.some(s => s.toLowerCase() === name.toLowerCase())) state.stores.push(name);
+  input.value = '';
+  save(); render();
+});
+
+document.getElementById('clearDone').addEventListener('click', () => {
+  state.items = state.items.filter(i => !i.done);
+  save(); render();
+});
+
+render();
+</script>
+</body>
+</html>
